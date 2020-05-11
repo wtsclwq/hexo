@@ -1,48 +1,45 @@
-# This is a basic workflow to help you get started with Actions
 
-name: Deploy To Github Pages
+name: Hexo Blog CI
 
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
-on: [push, repository_dispatch]
+on: 
+  push:
+    branches:
+      - master
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  deploy: 
-    name: Deploy Hexo Public To Pages
-    runs-on: ubuntu-latest 
-    env:
-      TZ: Asia/Shanghai    
+  build: 
+    runs-on: ubuntu-latest     
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - name: Checkout Repository master branch
       uses: actions/checkout@master
 
-    # Runs a single command using the runners shell
     - name: Setup Node.js 10.x
       uses: actions/setup-node@master
       with: 
         node-version: "10.x"
 
-    # from https://github.com/x-cold/yuque-hexo
-    - name: Setup Hexo Dependencies and Generate Public Files
-      env:
-        YUQUE_TOKEN: ${{ secrets.YUQUE_TOKEN }}
+    - name: Setup Hexo Dependencies
       run: |
         npm install hexo-cli -g
-        npm install yuque-hexo -g
         npm install
-        npm run start
+      
+      
+    - name: Setup Deploy Private Key
+      env:
+        HEXO_DEPLOY_PRIVATE_KEY: ${{ secrets.HEXO_DEPLOY_PRIVATE_KEY }}
+      run: |
+        mkdir -p ~/.ssh/
+        echo "$HEXO_DEPLOY_PRIVATE_KEY" > ~/.ssh/id_rsa 
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
         
-        
-    # from https://github.com/peaceiris/actions-gh-pages    
-    - name: Deploy
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        deploy_key: ${{ secrets.HEXO_DEPLOY_PRIVATE_KEY }}
-        external_repository: wtsclwq/hexo
-        publish_branch: master
-        publish_dir: ./public
-        commit_message: ${{ github.event.head_commit.message }}    
+    - name: Setup Git Infomation
+      run: | 
+        git config --global user.name 'wtsclwq' 
+        git config --global user.email '2498688739@qq.com'
+    - name: Deploy Hexo 
+      run: |
+        hexo clean
+        hexo generate 
+        hexo deploy
